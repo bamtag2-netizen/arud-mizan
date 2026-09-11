@@ -253,7 +253,6 @@ function analyzePart(text, isSadr) {
 
     return '<div class="part-result"><div class="part-title">' + (isSadr ? "الشطر الأول (الصدر)" : "الشطر الثاني (العجز)") + ': ' + cleanText + '</div><div class="badge badge-success">الميزان المكتشف: ' + bahrData.bahrName + ' (وزن منضبط وصحيح)</div><div class="tafila-blocks">' + htmlTafilat + '</div></div>';
 }
-
 function processFullPoem() {
     const input = document.getElementById("poemInput").value;
     const resultsArea = document.getElementById("resultsArea");
@@ -265,11 +264,11 @@ function processFullPoem() {
     let segments = input.split("*");
     let htmlOutput = "";
     
-    // خوارزمية تقسيم وحقن آمنة تماماً ومقاومة لتجمد المتصفحات أونلاين
-    if (segments.length > 0 && segments[0].trim().length > 1) {
+    // التوجيه البرمجي المضمون والمصحح بالملي للشطرين دون تجميد
+    if (segments.length > 0) {
         htmlOutput += analyzePart(segments[0], true);
     }
-    if (segments.length > 1 && segments[1].trim().length > 1) {
+    if (segments.length > 1) {
         htmlOutput += analyzePart(segments[1], false);
     }
 
@@ -278,5 +277,6 @@ function processFullPoem() {
 </script>
 </body>
 </html>
+
 
     
