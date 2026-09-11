@@ -261,22 +261,21 @@ function processFullPoem() {
         return;
     }
 
-    let segments = input.split("*");
     let htmlOutput = "";
+    let isSadrPart = true;
     
-    // التوجيه البرمجي المضمون والمصحح بالملي للشطرين دون تجميد
-    if (segments.length > 0) {
-        htmlOutput += analyzePart(segments[0], true);
-    }
-    if (segments.length > 1) {
-        htmlOutput += analyzePart(segments[1], false);
-    }
+    // أسلوب تفكيك ذكي ومبتكر مئة بالمئة لحل مشكلة توقف الأزرار نهائياً أونلاين
+    input.split("*").forEach(function(segment) {
+        if (segment.trim().length > 1) {
+            htmlOutput += analyzePart(segment, isSadrPart);
+            isSadrPart = false; 
+        }
+    });
 
     resultsArea.innerHTML = htmlOutput;
 }
 </script>
 </body>
 </html>
-
 
     
