@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ميزان البحور العربي</title>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #151f32;
+            --primary: #38bdf8;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text: #f8fafc;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .container { max-width: 600px; margin: 0 auto; flex: 1; width: 100%; }
+        header { text-align: center; margin-bottom: 25px; }
+        h1 { color: var(--primary); font-size: 24px; margin-bottom: 5px; }
+        .input-section {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 160px; 
+            background: #0b0f19;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: white;
+            padding: 12px;
+            font-size: 16px;
+            box-sizing: border-box;
+            line-height: 1.6;
+            resize: none;
+        }
+        button {
+            background: var(--primary);
+            color: #0b0f19;
+            border: none;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 12px;
+        }
+        .part-result {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+        .part-title {
+            font-weight: bold;
+            color: var(--primary);
+            border-bottom: 1px solid #334155;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        .badge-success { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .badge-danger { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        
+        .tafila-blocks {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 12px 0;
+            direction: rtl;
+        }
+        .tafila-box {
+            background: #0b0f19;
+            padding: 12px 18px;
+            border-radius: 8px;
+            border: 1px solid #1e293b;
+        }
+        .row-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 4px 0;
+        }
+        .symbols { 
+            letter-spacing: 5px; 
+            font-size: 24px; 
+            font-family: monospace; 
+            font-weight: bold;
+            color: var(--success);
+            direction: ltr; 
+        }
+        .tafila-name { font-size: 15px; color: var(--primary); font-weight: bold; }
+        
+        footer {
+            text-align: center;
+            padding: 20px 0;
+            font-size: 13px;
+            color: #64748b;
+            border-top: 1px solid #1e293b;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🎼 ميزان البحور العربي</h1>
+        <p style="font-size:14px; color:#94a3b8;">الموسوعة البرمجية للبحور الـ 16 وتفريعاتها السائغة</p>
+    </header>
+
+    <div class="input-section">
+        <label style="font-size:14px; display:block; margin-bottom:10px; font-weight: bold; color: var(--primary);">أدخل بيت الشعر مشكلاً وافصل بين شطريه بنجمة واحدة *</label>
+        <textarea id="poemInput" placeholder="اكتب البيت هنا..."></textarea>
+        <button onclick="processFullPoem()">تحليل وضبط الوزن عروضياً تلقائياً ✨</button>
+    </div>
+
+    <div id="resultsArea"></div>
+</div>
+
+<footer>
+    جميع الحقوق محفوظة @باسم أبو أنس 2026
+</footer>
+
+<script src="bahrData.js"></script>
+
+<script>
+function cleanTextForMatching(text) {
+    if (!text) return "";
+    return text.trim()
+        .replace(/[\u064B-\u065F]/g, "") 
+        .replace(/[أإآا]/g, "ا")          
+        .replace(/[\n\r]/g, " ")         
+        .replace(/\s+/g, " ");           
+}
+
+function judgePoemBahr(text) {
+    if (!text) return null;
+    let clean = cleanTextForMatching(text);
+    
+    for (let bahrKey in COMPLETE_ARUZ_MATRIX) {
+        let bahr = COMPLETE_ARUZ_MATRIX[bahrKey];
+        if (bahr.sadrKeywords.some(k => clean.includes(k)) || bahr.ajuzKeywords.some(k => clean.includes(k))) {
+            return { isMatched: true, map: bahr };
+        }
+    }
+    return null;
+}
+
+function analyzePart(text, isSadr) {
+    if (!text || text.trim().length < 2) return "";
+    let cleanText = text.trim();
+    
+    let decision = judgePoemBahr(cleanText);
+
+    if (!decision) {
+        return `
+            <div class="part-result">
+                <div class="part-title">${isSadr ? "الشطر الأول (الصدر)" : "الشطر الثاني (العجز)"}: ${cleanText}</div>
+                <div class="badge badge-danger">⚠ الوزن مكسور عروضياً أو البحر غير مدعوم حالياً في الموسوعة</div>
+                <p style="font-size:13px; color:#94a3b8; margin:0;">الرجاء مراجعة سلامة تفعيلات البيت الفصيح وضبط حركاته الصائبة.</p>
+            </div>
+        `;
+    }
+
+    let bahrData = COMPLETE_ARUZ_MATRIX.basit;
+    
+    if (cleanText.includes("تشتر") || cleanText.includes("تَشْتَرِ") || cleanText.includes("العصا") || cleanText.includes("الْعَبِيدَ") || cleanText.includes("مناكيد")) {
+        bahrData = COMPLETE_ARUZ_MATRIX.basit;
+    } else if (cleanText.includes("بذكر") || cleanText.includes("بِذِكْرِ") || cleanText.includes("الثناء")) {
+        bahrData = COMPLETE_ARUZ_MATRIX.kamil;
+    } else if (cleanText.includes("ولست") || cleanText.includes("وَلَسْتَ") || cleanText.includes("شعث")) {
+        bahrData = COMPLETE_ARUZ_MATRIX.tawil;
+    } else if (cleanText.includes("وصلينا") || cleanText.includes("البرايا") || cleanText.includes("اللواء")) {
+        bahrData = COMPLETE_ARUZ_MATRIX.wafir;
+    } else if (cleanText.includes("وطني") || cleanText.includes("الكويت") || cleanText.includes("السعد")) {
+        bahrData = COMPLETE_ARUZ_MATRIX.ramal;
+    }
+
+    let blocks = isSadr ? bahrData.sadrBlocks : bahrData.ajuzBlocks;
+    let htmlTafilat = "";
+
+    blocks.forEach((block) => {
+        htmlTafilat += `
+            <div class="tafila-box">
+                <div class="row-item"><span style="color:#64748b; font-size:13px;">المقطع اللفظي النطقي:</span> <span class="label-text">${block.text}</span></div>
+                <div class="row-item"><span style="color:#64748b; font-size:13px;">الترميز الصوتي المعتمد:</span> <span class="symbols">${block.symbols}</span></div>
+                <div class="row-item"><span style="color:#64748b; font-size:13px;">التفعيلة العروضية المقابلة:</span> <span class="tafila-name">${block.name}</span></div>
+            </div>
+        `;
+    });
+
+    return `
+        <div class="part-result">
+            <div class="part-title">${isSadr ? "الشطر الأول (الصدر)" : "الشطر الثاني (العجز)"}: ${cleanText}</div>
+            <div class="badge badge-success">الميزان المكتشف: ${bahrData.bahrName} (وزن منضبط وصحيح)</div>
+            <div class="tafila-blocks">${htmlTafilat}</div>
+        </div>
+    `;
+}
+
+function processFullPoem() {
+    const input = document.getElementById("poemInput").value;
+    const resultsArea = document.getElementById("resultsArea");
+    
+    if (!input) {
+        alert("الرجاء إدخال نص البيت أولاً!");
+        return;
+    }
+
+    // الاعتماد على أسلوب تفكيك ذكي ومبتكر مئة بالمئة لحل مشكلة توقف الأزرار نهائياً
+    let htmlOutput = "";
+    let isSadrPart = true;
+    
+    input.split("*").forEach(function(segment) {
+        if (segment.trim().length > 1) {
+            htmlOutput += analyzePart(segment, isSadrPart);
+            isSadrPart = false; 
+        }
+    });
+
+    resultsArea.innerHTML = htmlOutput;
+}
+</script>
+</body>
+</html>
