@@ -141,7 +141,6 @@
 </footer>
 
 <script>
-// حقن قاعدة البيانات الشاملة مباشرة لحل مشكلة فصل الملفات نهائياً
 const COMPLETE_ARUZ_MATRIX = {
     kamil: {
         bahrName: "البحر الكامل",
@@ -199,6 +198,7 @@ const COMPLETE_ARUZ_MATRIX = {
             { text: "دَ إِلْ لَا وَلْ", symbols: "//*/*/*", name: "مَفَاعِيلُنْ" },
             { text: "عَصَا مَعَهُو", symbols: "//*///*", name: "مُتَفَاعِلُنْ" }
         ],
+        // تم تنظيف وحذف التكرار المعيب تماماً لتستقر على 3 صناديق ذهبية ومطابقة لرموزك
         ajuzBlocks: [
             { text: "إِنْنَلْ عَبِيدْ", symbols: "/*/*//*/", name: "مُسْتَفْعِلْ" },
             { text: "لَأَنْجَاسُنْ", symbols: "//*/*/*", name: "مَفَاعِيلُنْ" },
@@ -221,7 +221,6 @@ const COMPLETE_ARUZ_MATRIX = {
         ]
     }
 };
-
 function removeDiacritics(text) {
     return text.trim().replace(/[\u064B-\u065F]/g, "").replace(/[أإآا]/g, "ا");
 }
@@ -268,20 +267,17 @@ function processFullPoem() {
     }
 
     let htmlOutput = "";
-    let parts = input.split("*");
+    let isSadrPart = true;
     
-    // محرك حقن مستقل ومقاوم تماماً ومضمون 100% دون استدعاء ملفات خارجية
-    if (parts.length > 0 && parts[0].trim().length > 1) {
-        htmlOutput += analyzePart(parts[0], true);
-    }
-    if (parts.length > 1 && parts[1].trim().length > 1) {
-        htmlOutput += analyzePart(parts[1], false);
-    }
+    input.split("*").forEach(function(segment) {
+        if (segment.trim().length > 1) {
+            htmlOutput += analyzePart(segment, isSadrPart);
+            isSadrPart = false; 
+        }
+    });
 
     resultsArea.innerHTML = htmlOutput;
 }
 </script>
 </body>
 </html>
-
-    
