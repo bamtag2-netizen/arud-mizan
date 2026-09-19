@@ -31,7 +31,7 @@
         }
         textarea {
             width: 100%;
-            height: 90px;
+            height: 150px;
             background: #0b0f19;
             border: 1px solid #334155;
             border-radius: 8px;
@@ -123,8 +123,8 @@
     </header>
 
     <div class="input-section">
-        <label style="font-size:14px; display:block; margin-bottom:8px;">أدخل أي بيت شعري فصيح مع التشكيل الكامل (افصل بين الشطرين بنجمة *):</label>
-        <textarea id="poemInput" placeholder="اكتب بيتك هنا بدقة وتشكيل صائب..."></textarea>
+        <label style="font-size:14px; display:block; margin-bottom:8px;">أدخل بيتاً واحداً أو عدة أبيات (كل بيت في سطر مستقل)، مع التشكيل الكامل، وافصل بين شطري كل بيت بنجمة *:</label>
+        <textarea id="poemInput" placeholder="مثال:&#10;وَلَسْتَ بِمُسْتَبْقٍ أَخًا لَا تَلُمُّهُ * عَلَى شَعَثٍ أَيُّ الرِّجَالِ الْمُهَذَّبُ&#10;بيت ثانٍ * عجزه هنا"></textarea>
         <button onclick="processFullPoem()">تحليل القصيدة والحكم العروضي تلقائياً ✨</button>
     </div>
 
@@ -176,6 +176,22 @@ const MARKS = {'\u064E':'a','\u064F':'u','\u0650':'i','\u0652':'o','\u0651':'s',
 const SPECIAL = {'هذا':0,'هذه':0,'هذي':0,'هذان':0,'ذلك':0,'ذلكم':0,'لكن':0,'الله':2,'لله':1,'الرحمن':4};
 const PREFIX = 'وفبكل';
 
+// قاموس الكلمات المبنية (ثابتة التشكيل مهما تغير موقعها في الجملة: حروف الجر والعطف والاستفهام والشرط،
+// أسماء الإشارة، الأسماء الموصولة، الضمائر المنفصلة). إن كتبها المستخدم بلا أي تشكيل إطلاقاً تُشكَّل تلقائياً،
+// فلا تُحسب "حروفاً بلا تشكيل" ولا يُخطئ المحرك في تقطيعها. لا يشمل القاموس أسماء معربة (ككل، بعض، غير)
+// لأن حركة آخرها تتغير بحسب موقعها الإعرابي، وتخمينها قد يكون خاطئاً.
+const COMMON_RAW = [
+  "مِنْ","إِلَى","عَنْ","عَلَى","فِي","مَعَ","حَتَّى","مُنْذُ","مُذْ",
+  "وَ","فَ","ثُمَّ","أَوْ","أَمْ","بَلْ","لَكِنْ","لَا","هَلْ","قَدْ","لَقَدْ",
+  "لَنْ","لَمْ","لَمَّا","لَوْ","لَوْلَا","إِنْ","أَنْ","إِذَا","إِذْ","كَيْ","لِكَيْ",
+  "يَا","أَلَا","أَمَّا","إِمَّا","كَلَّا","نَعَمْ","بَلَى","أَجَلْ","كَأَنَّ","لَعَلَّ","لَيْتَ",
+  "هَذَا","هَذِهِ","هَذَانِ","هَاتَانِ","هَؤُلَاءِ","ذَلِكَ","تِلْكَ","أُولَئِكَ","هُنَا","هُنَاكَ",
+  "الَّذِي","الَّتِي","الَّذِينَ","اللَّذَانِ","اللَّتَانِ","اللَّوَاتِي","اللَّاتِي",
+  "أَنَا","أَنْتَ","أَنْتُمَا","أَنْتُمْ","أَنْتُنَّ","هُوَ","هِيَ","هُمَا","هُمْ","هُنَّ","نَحْنُ"
+];
+const COMMON_WORDS = {};
+COMMON_RAW.forEach(w => { COMMON_WORDS[w.replace(/[ً-ْٰ]/g, '')] = w; });
+
 function parseWord(w) {
   const L = [];
   w = w.replace(/\u0671/g, 'ا').replace(/ى/g, 'ا');
@@ -207,6 +223,12 @@ function scanPhones(text, ajuz) {
   const push = (t, o) => out.push(Object.assign({t}, o));
 
   words.forEach((w, wi) => {
+    // تشكيل تلقائي للكلمات المبنية الشائعة إن كُتبت بلا أي تشكيل إطلاقاً (لا يُبدَّل أي تشكيل وضعه المستخدم بنفسه)
+    if (!/[ً-ْٰ]/.test(w)) {
+      const lookupKey = w.replace(/ٱ/g, 'ا');
+      if (COMMON_WORDS[lookupKey]) w = COMMON_WORDS[lookupKey];
+      else if (COMMON_WORDS[w]) w = COMMON_WORDS[w];
+    }
     const L = parseWord(w);
     if (!L.length) return;
     const sk = L.map(x => x.c).join('');
@@ -320,31 +342,60 @@ function renderPart(title, text, an, m) {
     return `<div class="part-result">${head}<div class="tafila-blocks">${feet}</div></div>`;
 }
 
-function processFullPoem() {
-    const input = document.getElementById("poemInput").value;
-    if (!input.trim()) { alert("الرجاء إدخال نص أولاً!"); return; }
-    const parts = input.split("*").map(s => s.trim());
-    if (parts.length < 2 || !parts[0] || !parts[1]) { alert("افصل بين الشطرين بنجمة *"); return; }
+function analyzeOneVerse(line, idx, multi) {
+    const parts = line.split("*").map(s => s.trim());
+    const label = multi ? `البيت ${idx + 1}` : "البيت";
+    if (parts.length < 2 || !parts[0] || !parts[1]) {
+        return { weighed: false, html: `<div class="part-result"><div class="badge badge-danger">⚠ ${label}: غير مفصول بنجمة * بين الشطرين</div><div style="font-size:14px">${esc(line)}</div></div>` };
+    }
 
     const a = analyzeHemistich(parts[0], false), b = analyzeHemistich(parts[1], true);
     const pairs = judgeVerse(a, b), best = pairs[0];
     let verdict;
     if (best) {
-        verdict = `<div class="part-result"><div class="badge badge-success">✅ البيت موزون — من بحر ${best.name}</div>` +
+        verdict = `<div class="part-result"><div class="badge badge-success">✅ ${label}: موزون — من بحر ${best.name}</div>` +
             (pairs.length > 1 ? `<div style="font-size:13px;color:#94a3b8">يحتمل أيضاً: ${pairs.slice(1).map(p => p.name).join('، ')}</div>` : '') + `</div>`;
     } else {
         let why = `الصدر على (${uniq(a)}) والعجز على (${uniq(b)}) ولا يجتمعان في بحر واحد`;
         if (!a.matches.length && !b.matches.length) why = 'الكسر في الشطرين، أو أن التشكيل غير كامل';
         else if (!a.matches.length) why = 'الكسر في الشطر الأول (الصدر)';
         else if (!b.matches.length) why = 'الكسر في الشطر الثاني (العجز)';
-        verdict = `<div class="part-result"><div class="badge badge-danger">⚠ في البيت كسر</div><div style="font-size:14px">${why}</div></div>`;
+        verdict = `<div class="part-result"><div class="badge badge-danger">⚠ ${label}: فيه كسر</div><div style="font-size:14px">${why}</div></div>`;
     }
     const miss = a.missing + b.missing;
-    if (miss) verdict += `<div class="part-result" style="color:#f59e0b;font-size:14px">⚠ في النص ${miss} حرفاً بلا تشكيل، وقد تكون النتيجة غير دقيقة. شكّل البيت تشكيلاً كاملاً.</div>`;
+    if (miss) verdict += `<div class="part-result" style="color:#f59e0b;font-size:14px">⚠ في هذا البيت ${miss} حرفاً بلا تشكيل (ولا تشملها الكلمات الشائعة المُشكَّلة تلقائياً)، وقد تكون النتيجة غير دقيقة.</div>`;
 
-    document.getElementById("resultsArea").innerHTML = verdict +
-        renderPart("الشطر الأول (الصدر)", parts[0], a, best ? best.sadr : a.matches[0]) +
-        renderPart("الشطر الثاني (العجز)", parts[1], b, best ? best.ajuz : b.matches[0]);
+    const html = verdict +
+        renderPart(`${label} — الشطر الأول (الصدر)`, parts[0], a, best ? best.sadr : a.matches[0]) +
+        renderPart(`${label} — الشطر الثاني (العجز)`, parts[1], b, best ? best.ajuz : b.matches[0]);
+    return { weighed: !!best, html };
+}
+
+function processFullPoem() {
+    const input = document.getElementById("poemInput").value;
+    if (!input.trim()) { alert("الرجاء إدخال نص أولاً!"); return; }
+    const lines = input.split("\n").map(l => l.trim()).filter(l => l !== "");
+    if (!lines.length) { alert("الرجاء إدخال بيت واحد على الأقل!"); return; }
+
+    const multi = lines.length > 1;
+    let weighedCount = 0;
+    let bodyHtml = "";
+    lines.forEach((line, idx) => {
+        const r = analyzeOneVerse(line, idx, multi);
+        if (r.weighed) weighedCount++;
+        bodyHtml += r.html;
+    });
+
+    let summaryHtml = "";
+    if (multi) {
+        summaryHtml = `<div class="part-result">
+            <div class="part-title" style="border-bottom:none;margin-bottom:0;">📊 ملخص القصيدة (${lines.length} أبيات)</div>
+            <div style="font-size:15px;margin-top:8px;">موزون: <span style="color:var(--success);font-weight:bold;">${weighedCount}</span>
+            &nbsp;—&nbsp; فيه كسر: <span style="color:var(--danger);font-weight:bold;">${lines.length - weighedCount}</span></div>
+        </div>`;
+    }
+
+    document.getElementById("resultsArea").innerHTML = summaryHtml + bodyHtml;
 }
 </script>
 
