@@ -222,11 +222,12 @@ function scanPhones(text, ajuz) {
       const x = L[i], p = L[i - 1] || null, n = L[i + 1] || null;
       if (x.c === 'ا') {
         if (x.tan) push('0', {tan:1});
-        else if (i === 1 && PREFIX.includes(L[0].c) && n && ((n.c === 'ل' && (n.so || (!n.v && L[i + 2] && L[i + 2].sh))) || (n.so && L.length >= 4))) { /* همزة وصل بعد واو/فاء/باء... */ }
+        else if (i === 1 && PREFIX.includes(L[0].c) && n && ((n.c === 'ل' && !n.v && !n.tan) || (n.so && L.length >= 4))) { /* همزة وصل بعد واو/فاء/باء... */ }
         else if (p && p.v === 'a' && !p.tan) push('0', {mad:1});
         continue;
       }
       if (x.c === 'ل' && !x.v && !x.sh && !x.so && !x.tan && n && n.sh) continue; // لام شمسية
+      if (x.c === 'ل' && !x.v && !x.sh && !x.tan && ((i === 1 && i0 === 1) || (i === 2 && PREFIX.includes(L[0].c) && L[1].c === 'ا' && !L[1].v))) { push('0'); continue; } // لام التعريف القمرية ولو بلا سكون
       if (((x.c === 'و' && p && p.v === 'u') || (x.c === 'ي' && p && p.v === 'i')) && !x.v && !x.sh && !x.tan) { push('0', {mad:1}); continue; }
       if (x.sh) { push('0'); push('/'); if (!x.v) missing++; }
       else if (x.v) push('/');
