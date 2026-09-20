@@ -11,6 +11,7 @@
             --primary: #38bdf8;
             --success: #10b981;
             --danger: #ef4444;
+            --gold: #f59e0b;
             --text: #f8fafc;
         }
         body {
@@ -111,6 +112,10 @@
             direction: ltr; 
         }
         .tafila-name { font-size: 15px; color: var(--primary); font-weight: bold; }
+        .standard-card { border: 1px solid rgba(245, 158, 11, 0.35); }
+        .standard-card .part-title { color: var(--gold); }
+        .standard-box { border-color: rgba(245, 158, 11, 0.3); }
+        .standard-box .tafila-name { color: var(--gold); }
         .site-footer { text-align: center; color: #64748b; font-size: 13px; margin: 30px 0 10px; padding-top: 15px; border-top: 1px solid #1e293b; }
     </style>
 </head>
@@ -324,6 +329,15 @@ function judgeVerse(a, b) {
 
 function textToProsodySymbols(text) { return analyzeHemistich(text).sym; }
 
+// الوزن القياسي (السالم) للبحر: أول مفتاح في كل موضع هو التفعيلة الأصلية قبل أي زحاف أو علة
+function standardForm(baseBahrName, isMajzu) {
+  const b = BAHRS.find(x => x.name === baseBahrName);
+  if (!b) return null;
+  const keys = (isMajzu ? b.feet.slice(0, -1) : b.feet).map(k => k[0]);
+  const feet = keys.map(k => ({ sym: FEET[k][0], label: FEET[k][1] }));
+  return { feet, sym: feet.map(f => f.sym).join('') };
+}
+
 </script>
 
 
@@ -340,6 +354,17 @@ function renderPart(title, text, an, m) {
         <div class="row-item"><span class="label-text">التقطيع العروضي:</span><span class="symbols">${f.sym}</span></div>
         <div class="row-item"><span class="label-text">التفعيلة:</span><span class="tafila-name">${f.label}</span></div></div>`).join('');
     return `<div class="part-result">${head}<div class="tafila-blocks">${feet}</div></div>`;
+}
+
+function renderStandardCard(displayName, std) {
+    const feet = std.feet.map(f => `<div class="tafila-box standard-box">
+        <div class="row-item"><span class="label-text">التفعيلة القياسية:</span><span class="tafila-name">${f.label}</span></div>
+        <div class="row-item"><span class="label-text">الرمز:</span><span class="symbols" style="color:var(--gold)">${f.sym}</span></div></div>`).join('');
+    return `<div class="part-result standard-card">
+        <div class="part-title">📐 الوزن القياسي (السالم) لبحر ${esc(displayName)}</div>
+        <div class="row-item"><span class="label-text">التقسيم العروضي القياسي (تفعيلات الشطر مجتمعة):</span>
+        <span class="symbols" style="color:var(--gold)">${std.sym}</span></div>
+        <div class="tafila-blocks">${feet}</div></div>`;
 }
 
 function analyzeOneVerse(line, idx, multi) {
@@ -365,7 +390,14 @@ function analyzeOneVerse(line, idx, multi) {
     const miss = a.missing + b.missing;
     if (miss) verdict += `<div class="part-result" style="color:#f59e0b;font-size:14px">⚠ في هذا البيت ${miss} حرفاً بلا تشكيل (ولا تشملها الكلمات الشائعة المُشكَّلة تلقائياً)، وقد تكون النتيجة غير دقيقة.</div>`;
 
-    const html = verdict +
+    let standardHtml = "";
+    if (best) {
+        const isMajzu = best.name.startsWith('مجزوء ');
+        const std = standardForm(best.sadr.base, isMajzu);
+        if (std) standardHtml = renderStandardCard(best.name, std);
+    }
+
+    const html = verdict + standardHtml +
         renderPart(`${label} — الشطر الأول (الصدر)`, parts[0], a, best ? best.sadr : a.matches[0]) +
         renderPart(`${label} — الشطر الثاني (العجز)`, parts[1], b, best ? best.ajuz : b.matches[0]);
     return { weighed: !!best, html };
